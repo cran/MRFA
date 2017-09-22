@@ -84,7 +84,7 @@
 #'
 
 MRFA_fit <- function(X, Y, weights = rep(1, length(Y)), order = 10, level = 10,
-                     lambda.min = 0.001, converge.tol = 1e-10, nvar.max = min(3 * length(Y), 3000), pen.norm = c("2", "N")[1],
+                     lambda.min = 1e-5, converge.tol = 1e-10, nvar.max = min(3 * length(Y), 3000), pen.norm = c("2", "N")[1],
                      model = LinReg(),
                      parallel = FALSE, verbose = TRUE){
 
@@ -103,28 +103,6 @@ MRFA_fit <- function(X, Y, weights = rep(1, length(Y)), order = 10, level = 10,
   Grid.ls <- generateGrid(order = order, level = level)
   gridpoint.ls <- Grid.ls$gridpoint.ls
   bandwidth.ls <- Grid.ls$bandwidth.ls
-
-#   #########     set gridpoints for basis functions     ########
-#   gridpoint.ls <- vector("list", order)
-#   for(u in 1:order) gridpoint.ls[[u]] <- vector("list", level)
-#
-#   for(u in 1:order){
-#     for(l in 1:level){
-#       spacing <- (u + 2^(2-l)-1)/10
-#       grid <- seq(0, 1, spacing)
-#       grid.df <- data.frame(matrix(rep(grid, u), ncol = u))
-#       gridpoint.ls[[u]][[l]] <- expand.grid(grid.df)
-#     }
-#   }
-#
-#   #########     set bandwidth for basis functions     ########
-#   bandwidth.ls <- vector("list", order)
-#   for(u in 1:order) bandwidth.ls[[u]] <- rep(NA, level)
-#   for(u in 1:order){
-#     for(l in 1:level){
-#       bandwidth.ls[[u]][l] <- sqrt((u^2+1)/2) * 0.75 / 2^(l-1)
-#     }
-#   }
 
   #########     if native norm, precompute the cholesky decomposition     ########
   choldecompose.ls <- NULL

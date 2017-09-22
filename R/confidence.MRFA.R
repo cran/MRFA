@@ -6,6 +6,10 @@
 #' @param xnew a testing matrix with dimension \code{n_new} by \code{d} in which each row corresponds to a predictive location.
 #' @param X input for \code{MRFA_fit}.
 #' @param lambda a value. The default is \code{min(object$lambda)}.
+#' @param var.estimation a character string specifying the estimation method for variance. "rss" specifies residual sum of squares, "cv" specifies a cross-validation method with \code{K} fold, and "posthoc" specifies a post-hoc estimation method. The default is "rss".
+#' @param w.estimation a character string specifying the estimation method for weights w. "cv" specifies a cross-validation method with \code{K} fold, and "nugget" specifies a least square error method with nugget=\code{nugget}. The default is "cv".
+#' @param K a positive integer specifying the number of folds.
+#' @param nugget a value specifying the nugget value for \code{w.estimation}. The default is 1e-6. It only works when \code{w.estimation="nugget"}.
 #' @param conf.level a value specifying confidence level of the confidence interval. The default is 0.95.
 #' @param parallel logical. If \code{TRUE}, apply function in parallel using parallel backend provided by foreach.
 #' @param verbose logical. If \code{TRUE}, additional diagnostics are printed.
@@ -15,6 +19,7 @@
 #' \item{upper bound}{a vector with length \code{n_new} displaying upper bound of predicted responses at locations \code{xnew}.}
 #' \item{conf.level}{as above.}
 #'
+#' @details When The details about \code{var.estimation} and \code{w.estimation} can be seen in Sung et al. (2017+).
 #' @seealso \code{\link{MRFA_fit}} for fitting of a multi-resolution functional ANOVA model; \code{\link{predict.MRFA}} for prediction of a multi-resolution functional ANOVA model.
 #' @author Chih-Li Sung <iamdfchile@gmail.com>
 #'
@@ -69,9 +74,12 @@
 #'
 #' ### confidence interval ###
 #' conf.interval <- confidence.MRFA(MRFA_model, X.test, X.train, lambda = min(MRFA_model$lambda))
+#' print(conf.interval)
 #' }
 #' @export confidence.MRFA
-confidence.MRFA <- function(object, xnew, X, lambda = object$lambda, conf.level = 0.95, parallel = FALSE, verbose = FALSE){
+confidence.MRFA <- function(object, xnew, X, lambda = object$lambda, conf.level = 0.95,
+                            var.estimation = c("rss", "cv", "posthoc")[1], w.estimation = c("cv", "nugget")[1], K = 5, nugget = 1e-6,
+                            parallel = FALSE, verbose = FALSE){
 
   if (is.MRFA(object) == FALSE) {
     stop("The object in question is not of class \"MRFA\" \n")
@@ -92,7 +100,7 @@ confidence.MRFA <- function(object, xnew, X, lambda = object$lambda, conf.level 
   order                 <-    object$order
   level                 <-    object$level
   lambda.min            <-    object$lambda.min
-  converge.tol          <-    object$converge.tol
+  converge.end          <-    object$converge.end
   nvar.max              <-    object$nvar.max
   coefficients          <-    object$coefficients
   active.group          <-    object$active.group
@@ -104,33 +112,50 @@ confidence.MRFA <- function(object, xnew, X, lambda = object$lambda, conf.level 
   n                     <-    nrow(X)
   nonactive.group       <-    candidate.group[-active_group.index]
   beta_hat              <-    predict(object, xnew, lambda, parallel)$coefficients
+  nvar.end              <-    length(beta_hat)
   min.x                 <-    object$min.x
   scale.x               <-    object$scale.x
 
-  X <- t((t(X) - min.x)/scale.x)    # scale X to [0,1]
+  X <- t((t(X) - min.x)/scale.x)          # scale X to [0,1]
   xnew <- t((t(xnew) - min.x)/scale.x)    # scale xnew to [0,1]
-
   n.xnew <- nrow(xnew)
-  Phi <- basis_fun(active.group, X, gridpoint.ls, bandwidth.ls, parallel = parallel)
-  Z <- cbind(1, Phi) ### active effects
-  s <- ncol(Z)
 
-  Q <- basis_fun(nonactive.group, X, gridpoint.ls, bandwidth.ls, parallel = parallel) ### nonactive effects
-  Phi.train <- cbind(Z, Q)
-  beta_hat <- cbind(beta_hat, matrix(0, nrow = nrow(beta_hat), ncol = ncol(Q)))
+  unique.ls <- unique.matrix(active.group, beta_hat, gridpoint.ls)
+  unique.beta <- unique.ls$unique.beta
+  unique.active.group <- unique.ls$unique.active.group
 
-  Phi.test <- basis_fun(active.group, xnew, gridpoint.ls, bandwidth.ls, parallel = parallel)
-  Phi.test <- cbind(1, Phi.test)
-  Phi.test <- cbind(Phi.test, basis_fun(nonactive.group, xnew, gridpoint.ls, bandwidth.ls, parallel = parallel))
-  p <- ncol(Phi.test)
+  Phi <- basis_fun(unique.active.group, X, gridpoint.ls, bandwidth.ls, parallel = parallel)  ### active effects
+  s <- ncol(Phi) + 1
 
-  if(s < 30 & n > s){
-    sigma <- sqrt(colSums((Y -  Phi.train %*% t(beta_hat))^2)/(n-s))
-  }else{
-    cv.out <- cv.MRFA(X = X, Y = Y, order = order, level = level, lambda = exp(seq(log(lambda + 1000), log(lambda), by = -0.01)),
-                      converge.tol = converge.tol, nvar.max = s - 1, K = 5, plot.it = FALSE, parallel = parallel, verbose = verbose)
-    sigma <- sqrt(cv.out$cv[length(cv.out$cv)])
+  unique.nonactive.group <- lapply(nonactive.group, function(x) x[length(x)])
+  Q <- basis_fun(unique.nonactive.group, X, gridpoint.ls, bandwidth.ls, parallel = parallel) ### nonactive effects
+  Phi.train <- cbind(Phi, Q)
+  beta_hat <- cbind(matrix(unique.beta, nrow = 1), matrix(0, nrow = nrow(beta_hat), ncol = ncol(Q)))
+
+  Phi.test <- basis_fun(unique.active.group, xnew, gridpoint.ls, bandwidth.ls, parallel = parallel)
+  Phi.test <- cbind(Phi.test, basis_fun(unique.nonactive.group, xnew, gridpoint.ls, bandwidth.ls, parallel = parallel))
+  p <- ncol(Phi.test) + 1
+
+  if(s >= n & var.estimation == "rss"){
+    warning("var.estimation is forced to be cv since s >= n")
+    var.estimation <- "cv"
   }
+  if(var.estimation == "rss"){
+    sigma <- sqrt(colSums((Y -  Phi.train %*% t(beta_hat[,-1, drop=FALSE]) - beta_hat[1,1])^2)/(n-s))
+  }else if (var.estimation == "cv"){
+    cv.out <- cv.MRFA(X = X, Y = Y, order = order, level = level, lambda = exp(seq(log(lambda + 1000), log(lambda), by = -0.01)),
+                      converge.tol = converge.end, nvar.max = nvar.end - 1, K = K, plot.it = FALSE, parallel = parallel, verbose = verbose)
+    sigma <- min(sqrt(cv.out$cv))
+  }else if(var.estimation == "posthoc"){
+    sigma <- post_sigma(Phi.train, Y, beta_hat, conf.level = 0.95,
+                        var.estimation, w.estimation, K, nugget, parallel, verbose)
+  }else{
+    stop("var.estimation setting is incorrect.")
+  }
+
+  XtX <- t(Phi.train) %*% Phi.train
+  Xsum <- matrix(apply(Phi.train, 2, sum), nrow = 1)
+  res <- Y - Phi.train %*% t(beta_hat[,-1, drop=FALSE])
 
   if(parallel){
     if (foreach::getDoParWorkers() == 1) {
@@ -140,93 +165,73 @@ confidence.MRFA <- function(object, xnew, X, lambda = object$lambda, conf.level 
     }
 
     CI <- foreach::foreach(i = seq(n.xnew), .combine = rbind, .verbose = verbose, .packages = "glmnet") %dopar%{
-      c1 <- Phi.test[i,, drop = FALSE]
+
+      c1 <- cbind(1, Phi.test[i,, drop = FALSE])
       B <- rbind(c1, diag(1,length(c1))[2:(length(c1)),])
-      #P <- Phi.train %*% solve(B)
-      #Znew <- P[,1]
-      #Qnew <- P[,2:ncol(P)]
-      ### faster to compute the B inverse and P
       a <- rep(0, length(c1))
       a[1] <- 1/c1[1]
       a[2:length(a)] <- -c1[2:length(c1)]/c1[1]
-      #B.inv <- rbind(a, diag(1,length(a))[2:(length(a)),])
-      Znew <- a[1] * Phi.train[,1]
-      Qnew <- Phi.train[,2:ncol(Phi.train)]
-      for(j in 2:ncol(Phi.train)){
-        Qnew[,j-1] <- a[j] * Phi.train[,1] + Phi.train[,j]
+      Znew <- a[1] * matrix(1, ncol = 1, nrow = n)
+
+      xXsum <- t(c1[,-1, drop = FALSE]) %*% Xsum
+      x.lars <- XtX - (xXsum + t(xXsum)) / c1[1] + n * t(c1[,-1, drop = FALSE]) %*% c1[,-1, drop = FALSE] / c1[1]^2
+      y.lars <- t(Xsum - n * c1[,-1, drop = FALSE] / c1[1])
+
+      if(w.estimation == "cv"){
+        m.out <- glmnet(x = x.lars, y = y.lars, intercept = FALSE, alpha = 1)
+        cv.out <- cv.glmnet(x = x.lars, y = y.lars, lambda = exp(seq(log(1e-6), log(max(m.out$lambda)), length = 100)), intercept=FALSE, alpha = 1, nfolds = K, parallel = parallel)
+        cv.mode <- cv.out$lambda.min
+        w <- coef(cv.out$glmnet.fit, s = cv.mode)[-1]
+      }else{
+        w <- solve(x.lars + diag(1e-6, ncol(x.lars)), y.lars)
       }
 
-      eta_hat <- B %*% t(beta_hat)
+      res2 <- Znew - Phi.train %*% w
+      U <- colSums((res - sum(a[-1] * beta_hat[,-1])) * c(res2  - sum(a[-1] * w)))
+      b <- sum(res2 - sum(a[-1] * w))
 
-      x.lars <- crossprod(Qnew)
-      y.lars <- crossprod(Qnew, Znew)
-
-      m.out <- glmnet(x = x.lars, y = y.lars, intercept=FALSE, alpha = 1)
-      cv.out <- cv.glmnet(x = x.lars, y = y.lars, lambda = seq(0, max(m.out$lambda), length = 100), intercept=FALSE, alpha = 1, nfolds = 5, parallel = parallel)
-      cv.mode <- cv.out$lambda.min
-      lasso.fit <- glmnet(x = x.lars, y = y.lars, lambda = cv.out$lambda, intercept=FALSE, alpha = 1)
-      w <- coef(lasso.fit, s = cv.mode)[-1]
-
-      U <- colSums((Y - Qnew %*% eta_hat[-1,]) * c(Znew - Qnew %*% w))
-      b <- sum(Znew * (Znew - Qnew %*% w))
       c_alpha_1 <- U + sigma * qnorm(1-(1-conf.level)/2) * sqrt(b)
       c_alpha_2 <- U - sigma * qnorm(1-(1-conf.level)/2) * sqrt(b)
 
-      if(b > 0){
-        UCI <- c_alpha_1/b
-        LCI <- c_alpha_2/b
-      }else{
-        UCI <- c_alpha_2/b
-        LCI <- c_alpha_1/b
-      }
+      UCI <- c_alpha_1/b
+      LCI <- c_alpha_2/b
+
       out <- rbind(UCI, LCI)
     }
     UCI <- CI[(1:n.xnew)*2-1,]
     LCI <- CI[(1:n.xnew)*2,]
   }else{
-
     UCI <- LCI <- matrix(0, nrow = n.xnew, ncol = 1)
     for(i in 1:n.xnew){
-      c1 <- Phi.test[i,, drop = FALSE]
+      c1 <- cbind(1, Phi.test[i,, drop = FALSE])
       B <- rbind(c1, diag(1,length(c1))[2:(length(c1)),])
-      #P <- Phi.train %*% solve(B)
-      #Znew <- P[,1]
-      #Qnew <- P[,2:ncol(P)]
-      ### faster to compute the B inverse and P
       a <- rep(0, length(c1))
       a[1] <- 1/c1[1]
       a[2:length(a)] <- -c1[2:length(c1)]/c1[1]
-      #B.inv <- rbind(a, diag(1,length(a))[2:(length(a)),])
-      Znew <- a[1] * Phi.train[,1]
-      Qnew <- Phi.train[,2:ncol(Phi.train)]
-      for(j in 2:ncol(Phi.train)){
-        Qnew[,j-1] <- a[j] * Phi.train[,1] + Phi.train[,j]
+      Znew <- a[1] * matrix(1, ncol = 1, nrow = n)
+
+      xXsum <- t(c1[,-1, drop = FALSE]) %*% Xsum
+      x.lars <- XtX - (xXsum + t(xXsum)) / c1[1] + n * t(c1[,-1, drop = FALSE]) %*% c1[,-1, drop = FALSE] / c1[1]^2
+      y.lars <- t(Xsum - n * c1[,-1, drop = FALSE] / c1[1])
+
+      if(w.estimation == "cv"){
+        m.out <- glmnet(x = x.lars, y = y.lars, intercept = FALSE, alpha = 1)
+        cv.out <- cv.glmnet(x = x.lars, y = y.lars, lambda = exp(seq(log(1e-6), log(max(m.out$lambda)), length = 100)), intercept=FALSE, alpha = 1, nfolds = K, parallel = parallel)
+        cv.mode <- cv.out$lambda.min
+        w <- coef(cv.out$glmnet.fit, s = cv.mode)[-1]
+      }else{
+        w <- c(solve(x.lars + diag(nugget, ncol(x.lars)), y.lars))
       }
 
-      eta_hat <- B %*% t(beta_hat)
+      res2 <- Znew - Phi.train %*% w
+      U <- colSums((res - sum(a[-1] * beta_hat[,-1])) * c(res2  - sum(a[-1] * w)))
+      b <- sum(res2 - sum(a[-1] * w))
 
-      x.lars <- crossprod(Qnew)
-      y.lars <- crossprod(Qnew, Znew)
-
-      m.out <- glmnet(x = x.lars, y = y.lars, intercept=FALSE, alpha = 1)
-      cv.out <- cv.glmnet(x = x.lars, y = y.lars, lambda = seq(0, max(m.out$lambda), length = 100), intercept=FALSE, alpha = 1, nfolds = 5, parallel = parallel)
-      cv.mode <- cv.out$lambda.min
-      lasso.fit <- glmnet(x = x.lars, y = y.lars, lambda = cv.out$lambda, intercept=FALSE, alpha = 1)
-      w <- coef(lasso.fit, s = cv.mode)[-1]
-
-      U <- colSums((Y - Qnew %*% eta_hat[-1,]) * c(Znew - Qnew %*% w))
-      b <- sum(Znew * (Znew - Qnew %*% w))
       c_alpha_1 <- U + sigma * qnorm(1-(1-conf.level)/2) * sqrt(b)
       c_alpha_2 <- U - sigma * qnorm(1-(1-conf.level)/2) * sqrt(b)
 
-
-      if(b > 0){
-        UCI[i,] <- c_alpha_1/b
-        LCI[i,] <- c_alpha_2/b
-      }else{
-        UCI[i,] <- c_alpha_2/b
-        LCI[i,] <- c_alpha_1/b
-      }
+      UCI[i,] <- c_alpha_1/b
+      LCI[i,] <- c_alpha_2/b
     }
   }
 

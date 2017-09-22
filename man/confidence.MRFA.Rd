@@ -5,7 +5,9 @@
 \title{Confidence Interval for Multiresolution Functional ANOVA (MRFA) Model}
 \usage{
 confidence.MRFA(object, xnew, X, lambda = object$lambda, conf.level = 0.95,
-  parallel = FALSE, verbose = FALSE)
+  var.estimation = c("rss", "cv", "posthoc")[1], w.estimation = c("cv",
+  "nugget")[1], K = 5, nugget = 1e-06, parallel = FALSE,
+  verbose = FALSE)
 }
 \arguments{
 \item{object}{a class MRFA object estimated by \code{MRFA_fit}.}
@@ -18,6 +20,14 @@ confidence.MRFA(object, xnew, X, lambda = object$lambda, conf.level = 0.95,
 
 \item{conf.level}{a value specifying confidence level of the confidence interval. The default is 0.95.}
 
+\item{var.estimation}{a character string specifying the estimation method for variance. "rss" specifies residual sum of squares, "cv" specifies a cross-validation method with \code{K} fold, and "posthoc" specifies a post-hoc estimation method. The default is "rss".}
+
+\item{w.estimation}{a character string specifying the estimation method for weights w. "cv" specifies a cross-validation method with \code{K} fold, and "nugget" specifies a least square error method with nugget=\code{nugget}. The default is "cv".}
+
+\item{K}{a positive integer specifying the number of folds.}
+
+\item{nugget}{a value specifying the nugget value for \code{w.estimation}. The default is 1e-6. It only works when \code{w.estimation="nugget"}.}
+
 \item{parallel}{logical. If \code{TRUE}, apply function in parallel using parallel backend provided by foreach.}
 
 \item{verbose}{logical. If \code{TRUE}, additional diagnostics are printed.}
@@ -29,6 +39,9 @@ confidence.MRFA(object, xnew, X, lambda = object$lambda, conf.level = 0.95,
 }
 \description{
 The function computes the confidence intervals of predicted responses (only works for linear regression model).
+}
+\details{
+When The details about \code{var.estimation} and \code{w.estimation} can be seen in Sung et al. (2017+).
 }
 \examples{
 \dontrun{
@@ -81,6 +94,7 @@ print(sqrt(mean((Y.test - Y.pred)^2)))
 
 ### confidence interval ###
 conf.interval <- confidence.MRFA(MRFA_model, X.test, X.train, lambda = min(MRFA_model$lambda))
+print(conf.interval)
 }
 }
 \author{

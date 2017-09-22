@@ -439,6 +439,7 @@ grplasso_forward <- function(x, y, X, index, weights = rep(1, length(y)),
           }
 
           cond       <- -ngrad + nH * coef.ind
+          cond       <- c(cond) # v0.2
           cond.norm2 <- crossprod(cond)
 
           ## Check the condition whether the minimum is at the non-differentiable
@@ -639,7 +640,6 @@ grplasso_forward <- function(x, y, X, index, weights = rep(1, length(y)),
       }
 
       if(length(add_active_group.index) > 0 & pos < nrlambda){
-
         ## If more than one groups are entertained in current model, then increase lambda
         if(length(add_active_group.index) > 1){
 
@@ -872,6 +872,7 @@ grplasso_forward <- function(x, y, X, index, weights = rep(1, length(y)),
               level              = level,
               lambda.min         = lambda.min,
               converge.tol       = converge.tol,
+              converge.end       = fn.diff,
               nvar.max           = nvar.max,
               pen.norm           = pen.norm,
               gridpoint.ls       = gridpoint.ls,

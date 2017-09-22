@@ -1,26 +1,32 @@
 update_candidate <- function(add_active_group.index, active_group.index, candidate.group, order, level){
   ##### update candidate group according to strong effect heredity principle
-
   new_candidate.group <- list()
+  active.group <- candidate.group[active_group.index]
+  unique.active.group <- lapply(active.group, FUN = function(x) x[[length(x)]])
   kk <- 1
   for(group.index in add_active_group.index){
-    active.group <- candidate.group[active_group.index]
     new_active.group <- candidate.group[[group.index]]
-
     ## update candidate group with increasing resolution
     new_active.resolution <- max(sapply(new_active.group, function(x) x$resolution))
+    new_active.order <- max(sapply(new_active.group, function(x) length(x$effect)))
     if(new_active.resolution < level){
       group.add <- new_active.group[sapply(new_active.group, FUN = function(x) x$resolution == new_active.resolution)]
       group.add <- lapply(group.add, function(x) {
         x$resolution <- x$resolution + 1
         return(x)})
-      new_candidate.add <- c(new_active.group, group.add)
-
-      new_candidate.group <- c(new_candidate.group, list(new_candidate.add))
+      if(new_active.order == 1){
+        new_candidate.add <- c(new_active.group, group.add)
+        new_candidate.group <- c(new_candidate.group, list(new_candidate.add))
+      }else{
+        dupicate.index <- is.anydupicate(group.add, unique.active.group, type = 2)
+        if(all(dupicate.index[-length(dupicate.index)])){
+          new_candidate.add <- c(new_active.group, group.add)
+          new_candidate.group <- c(new_candidate.group, list(new_candidate.add))
+        }
+      }
     }
 
     ## update candidate group with interaction effect
-    new_active.order <- max(sapply(new_active.group, function(x) length(x$effect)))
     if(new_active.order < order & length(active.group) > 0){
       same_order_level.group <- active.group[sapply(active.group, function(x.ls) max(sapply(x.ls, function(x) x$resolution)) == new_active.resolution &
                                                       max(sapply(x.ls, function(x) length(x$effect))) == new_active.order)]
@@ -28,7 +34,8 @@ update_candidate <- function(add_active_group.index, active_group.index, candida
       if(length(same_order_level.group) > new_active.order){
         test.table <- combn(length(same_order_level.group) - 1, new_active.order)
         test.table <- rbind(test.table, length(same_order_level.group))
-        group.tmp <- sapply(same_order_level.group, function(x.ls) x.ls[sapply(x.ls, function(x) length(x$effect) == new_active.order)])
+        temp.group <- lapply(same_order_level.group, function(x.ls) x.ls[length(x.ls)])
+        group.tmp <- sapply(temp.group, function(x.ls) x.ls[sapply(x.ls, function(x) length(x$effect) == new_active.order)])
         ## the effects which obey strong effect heredity principle
         effect_heredity.index <- which(apply(test.table, 2, function(x){
           group.tbl <- table(c(sapply(group.tmp[x], function(x.ls) x.ls$effect)))
@@ -50,7 +57,7 @@ update_candidate <- function(add_active_group.index, active_group.index, candida
 
   if(length(new_candidate.group) > 1) new_candidate.group <- list.unique(new_candidate.group)
   if(length(new_candidate.group) > 0){
-    delete.fg <- !is.anydupicate(new_candidate.group, candidate.group)
+    delete.fg <- !is.anydupicate(new_candidate.group, candidate.group, type = 1)
     if(any(delete.fg)){
       new_candidate.group <- new_candidate.group[delete.fg]
     }
