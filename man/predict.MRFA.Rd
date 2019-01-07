@@ -74,10 +74,9 @@ Y.pred <- predict(MRFA_model, X.test, lambda = min(MRFA_model$lambda))$y_hat
 print(sqrt(mean((Y.test - Y.pred)^2)))
 }
 }
-\author{
-Chih-Li Sung <iamdfchile@gmail.com>
-}
 \seealso{
 \code{\link{MRFA_fit}} for fitting a multiresolution functional ANOVA model.
 }
-
+\author{
+Chih-Li Sung <iamdfchile@gmail.com>
+}

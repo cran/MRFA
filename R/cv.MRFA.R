@@ -54,6 +54,9 @@
 #' X.test <- matrix(runif(d*n_new), ncol = d)
 #' Y.test <- apply(X.test, 1, grlee09)
 #'
+#' #####   Fitting    #####
+#' MRFA_model <- MRFA_fit(X.train, Y.train)
+#'
 #' #####   Computes the K-fold cross validated   #####
 #' cv.out <- cv.MRFA(X.train, Y.train, K = 5, lambda = seq(0.01,3,0.1))
 #'

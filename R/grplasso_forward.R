@@ -6,7 +6,7 @@ grplasso_forward <- function(x, y, X, index, weights = rep(1, length(y)),
                              candidate.group = candidate.group,
                              gridpoint.ls = gridpoint.ls,
                              bandwidth.ls = bandwidth.ls,
-                             choldecompose.ls = NULL,
+                             choldecompose.ls = NULL, k = k,
                              penscale = sqrt, center = TRUE, standardize = TRUE, control = grpl.control(), parallel = FALSE,...)
 {
   ###### modified from grplasso (see the original package grplasso by Lukas Meier)
@@ -447,7 +447,7 @@ grplasso_forward <- function(x, y, X, index, weights = rep(1, length(y)),
           border <- penscale(npar) * l
           if(cond.norm2 > border^2){
             d <- (1 / nH) *
-              (-ngrad - l * penscale(npar) * (cond / sqrt(cond.norm2)))
+              (-ngrad - l * penscale(npar) * (cond / c(sqrt(cond.norm2))))
             ##d <- zapsmall(c(coef.ind, d))[-(1:npar)]
           }else{
             d <- -coef.ind
@@ -567,6 +567,8 @@ grplasso_forward <- function(x, y, X, index, weights = rep(1, length(y)),
 
       ## update active groups
       all_active_group.index <- unique(na.omit(index[coef != 0]))
+      # fix singularity on 12/24/18
+      all_active_group.index <- sort(unique(c(all_active_group.index, active_group.index)))
       add_active_group.index <- all_active_group.index[!is.element(all_active_group.index, active_group.index)]
 
       ## If p > n then stop
@@ -600,6 +602,11 @@ grplasso_forward <- function(x, y, X, index, weights = rep(1, length(y)),
         #         fitted            <- fitted[,1:pos]
         lambda            <- lambda[1:pos]
         stop_loop.check <- TRUE
+
+        if(trace == 1){
+          cat("\n============= Entertaining new active groups: =============\n")
+          print(lapply(candidate.group[add_active_group.index], function(x) x[[length(x)]]))
+        }
         break
       }
 
@@ -741,7 +748,7 @@ grplasso_forward <- function(x, y, X, index, weights = rep(1, length(y)),
         ## Update Phi
         candidate.group.old <- candidate.group
         candidate.group <- c(candidate.group, new_candidate.group)
-        x.add <- try(basis_fun(new_candidate.group, X, gridpoint.ls, bandwidth.ls, parallel))
+        x.add <- try(basis_fun(new_candidate.group, X, gridpoint.ls, bandwidth.ls, k, parallel))
 
         x.pen.len <- length(x.pen)
 

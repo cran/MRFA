@@ -54,8 +54,6 @@ print(aic.MRFA(MRFA_model))
 print(bic.MRFA(MRFA_model))
 
 #####   Prediction : AIC and BIC  ######
-X.test <- matrix(runif(d*n_new), ncol = d)
-Y.test <- apply(X.test, 1, otlcircuit)
 lambda.aic <- MRFA_model$lambda[which.min(aic.MRFA(MRFA_model))]
 Y.pred <- predict(MRFA_model, X.test, lambda = lambda.aic)$y_hat
 print(sqrt(mean((Y.test - Y.pred)^2)))
@@ -65,10 +63,9 @@ Y.pred <- predict(MRFA_model, X.test, lambda = lambda.bic)$y_hat
 print(sqrt(mean((Y.test - Y.pred)^2)))
 }
 }
-\author{
-Chih-Li Sung <iamdfchile@gmail.com>
-}
 \seealso{
 \code{\link{predict.MRFA}} for prediction of the MRFA model.
 }
-
+\author{
+Chih-Li Sung <iamdfchile@gmail.com>
+}

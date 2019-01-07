@@ -10,8 +10,12 @@
 #' @param lambda.min a positive value specifying the minimum penalty value to be performed before the convergence criterion is met.
 #' @param converge.tol convergence tolerance. It converges when relative difference with respect to function value (penalized likelihood) is smaller than the tolerance. The default is 1e-10.
 #' @param nvar.max maximum number of non-zero variables.
+#' @param k a positive integer specifying the order of Wendland covariance function. The default is 2.
 #' @param pen.norm a character string specifying the type of penalty norm for group lasso to be computed. "2" or 2 specifies 2-norm, and "N" specifies native norm. The default is "2".
 #' @param model an object of class specifying other models. \code{LinReg()} (default) fits a linear regression, \code{LogReg()} fits a logistic regression, and \code{PoissReg()} fits a Poisson regression.
+#' @param standardize.d logical. If \code{TRUE}, the columns of the design matrix will be standardized into [0,1].
+#' @param center logical. If \code{TRUE}, the columns of the model matrix will be centered (except a possible intercept column).
+#' @param standardize logical. If \code{TRUE}, the model matrix will be blockwise orthonormalized.
 #' @param parallel logical. If \code{TRUE}, apply function in parallel in \code{ldply} using parallel backend provided by foreach.
 #' @param verbose logical. If \code{TRUE}, additional diagnostics are printed.
 #'
@@ -84,8 +88,8 @@
 #'
 
 MRFA_fit <- function(X, Y, weights = rep(1, length(Y)), order = 10, level = 10,
-                     lambda.min = 1e-5, converge.tol = 1e-10, nvar.max = min(3 * length(Y), 3000), pen.norm = c("2", "N")[1],
-                     model = LinReg(),
+                     lambda.min = 1e-5, converge.tol = 1e-10, nvar.max = min(3 * length(Y), 3000), k = 2, pen.norm = c("2", "N")[1],
+                     model = LinReg(), standardize.d = TRUE, center = TRUE, standardize = TRUE,
                      parallel = FALSE, verbose = TRUE){
 
   #########     setting      ########
@@ -95,7 +99,10 @@ MRFA_fit <- function(X, Y, weights = rep(1, length(Y)), order = 10, level = 10,
   d <- ncol(X)
   min.x <- apply(X, 2, function(x) min(x))
   scale.x <- apply(X, 2, function(x) diff(range(x)))
-  X <- t((t(X) - min.x)/scale.x)    # scale X to [0,1]
+  if(standardize.d){
+    X <- t((t(X) - min.x)/scale.x)
+  }
+  # scale X to [0,1]
   if(order > d) order <- d
 
   #########     set gridpoints for basis functions     ########
@@ -114,7 +121,7 @@ MRFA_fit <- function(X, Y, weights = rep(1, length(Y)), order = 10, level = 10,
       for(l in 1:level){
         grid.mx <- as.matrix(gridpoint.ls[[u]][[l]])
         group.ls <- list(list(effect = 1:u, resolution = l))
-        Phi <- basis_fun(list(group.ls), grid.mx, gridpoint.ls, bandwidth.ls, parallel = parallel)
+        Phi <- basis_fun(list(group.ls), grid.mx, gridpoint.ls, bandwidth.ls, k = k, parallel = parallel)
         choldecompose.ls[[u]][[l]] <- chol(Phi)
       }
     }
@@ -125,7 +132,7 @@ MRFA_fit <- function(X, Y, weights = rep(1, length(Y)), order = 10, level = 10,
   for(j in 1:d) candidate.group[[j]][[1]] <- list(effect = j, resolution = 1)
 
   #########     set initial basis functions     ########
-  Phi <- basis_fun(candidate.group, X, gridpoint.ls, bandwidth.ls, parallel)
+  Phi <- basis_fun(candidate.group, X, gridpoint.ls, bandwidth.ls, k, parallel)
   Phi <- cbind(rep(1,nrow(Phi)), Phi)
 
   group.index <- NA
@@ -137,9 +144,9 @@ MRFA_fit <- function(X, Y, weights = rep(1, length(Y)), order = 10, level = 10,
 
   #########     set lambda.max which allows only one group in the model    ########
   if (verbose)  cat("Setting lambda.max \n")
-  lambda.test <- lambdamax(x = Phi, y = Y, index = group.index) + 100
-  fit.tmp <- grplasso(x = Phi, y = Y, index = group.index, lambda = lambda.test, model = model,
-                      control = grpl.control(trace = as.numeric(verbose)))
+  lambda.test <- lambdamax(x = Phi, y = Y, model = model, index = group.index) + 100
+  fit.tmp <- suppressWarnings(grplasso(x = Phi, y = Y, index = group.index, lambda = lambda.test, model = model,
+                                       control = grpl.control(trace = as.numeric(verbose))))
   sig.group <- unique(na.omit(group.index[fit.tmp$coef != 0]))
   while(length(sig.group) != 1){
     if(length(sig.group) > 1){
@@ -147,8 +154,8 @@ MRFA_fit <- function(X, Y, weights = rep(1, length(Y)), order = 10, level = 10,
     }else{
       lambda.test <- lambda.test - lambda.test/100
     }
-    fit.tmp <- grplasso(x = Phi, y = Y, index = group.index, lambda = lambda.test, model = model,
-                        control = grpl.control(trace = as.numeric(verbose)))
+    fit.tmp <- suppressWarnings(grplasso(x = Phi, y = Y, index = group.index, lambda = lambda.test, model = model,
+                                         control = grpl.control(trace = as.numeric(verbose)))) # suppress the warnings from grplasso (due to new R version)
     sig.group <- unique(na.omit(group.index[fit.tmp$coef != 0]))
   }
   lambda.max <- lambda.test
@@ -163,11 +170,14 @@ MRFA_fit <- function(X, Y, weights = rep(1, length(Y)), order = 10, level = 10,
                                candidate.group = candidate.group,
                                gridpoint.ls = gridpoint.ls,
                                bandwidth.ls = bandwidth.ls,
-                               choldecompose.ls = choldecompose.ls,
-                               penscale = sqrt, center = TRUE, standardize = TRUE,
+                               choldecompose.ls = choldecompose.ls, k = k,
+                               penscale = sqrt, center = center, standardize = standardize,
                                control = grpl.control(trace = as.numeric(verbose)), parallel = parallel)
 
   MRFA.fit$min.x <- min.x
   MRFA.fit$scale.x <- scale.x
+  MRFA.fit$standardize.d <- standardize.d
+  MRFA.fit$k <- k
+
   invisible(MRFA.fit)
 }

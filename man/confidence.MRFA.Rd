@@ -4,10 +4,10 @@
 \alias{confidence.MRFA}
 \title{Confidence Interval for Multiresolution Functional ANOVA (MRFA) Model}
 \usage{
-confidence.MRFA(object, xnew, X, lambda = object$lambda, conf.level = 0.95,
-  var.estimation = c("rss", "cv", "posthoc")[1], w.estimation = c("cv",
-  "nugget")[1], K = 5, nugget = 1e-06, parallel = FALSE,
-  verbose = FALSE)
+confidence.MRFA(object, xnew, X, lambda = object$lambda,
+  conf.level = 0.95, var.estimation = c("rss", "cv", "posthoc")[1],
+  w.estimation = c("cv", "nugget")[1], K = 5, nugget = 1e-06,
+  parallel = FALSE, verbose = FALSE)
 }
 \arguments{
 \item{object}{a class MRFA object estimated by \code{MRFA_fit}.}
@@ -97,10 +97,9 @@ conf.interval <- confidence.MRFA(MRFA_model, X.test, X.train, lambda = min(MRFA_
 print(conf.interval)
 }
 }
-\author{
-Chih-Li Sung <iamdfchile@gmail.com>
-}
 \seealso{
 \code{\link{MRFA_fit}} for fitting of a multi-resolution functional ANOVA model; \code{\link{predict.MRFA}} for prediction of a multi-resolution functional ANOVA model.
 }
-
+\author{
+Chih-Li Sung <iamdfchile@gmail.com>
+}

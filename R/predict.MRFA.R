@@ -84,12 +84,14 @@ predict.MRFA <- function(object, xnew, lambda = object$lambda, parallel = FALSE,
   active_group.index    <-    object$active_group.index
   min.x                 <-    object$min.x
   scale.x               <-    object$scale.x
+  k                     <-    object$k
+  standardize.d         <-    object$standardize.d
 
   ###################       Setting       ###################
-  xnew <- t((t(xnew) - min.x)/scale.x)    # scale xnew to [0,1]
+  if(standardize.d) xnew <- t((t(xnew) - min.x)/scale.x)    # scale xnew to [0,1]
   p <- ncol(coefficients)
   n.test <- nrow(xnew)
-  Phi <- basis_fun(active.group, xnew, gridpoint.ls, bandwidth.ls, parallel)
+  Phi <- basis_fun(active.group, xnew, gridpoint.ls, bandwidth.ls, k, parallel)
   Phi <- cbind(rep(1,nrow(Phi)), Phi)
 
   ##################       Prediction      ###################
@@ -97,7 +99,7 @@ predict.MRFA <- function(object, xnew, lambda = object$lambda, parallel = FALSE,
   betas <- t(object$coefficients[row.index, ])
   dimnames(betas) <- list(NULL, dimnames(betas)[[2]])
   kp <- dim(betas)
-  k <- kp[1]
+  kk <- kp[1]
   p <- kp[2]
 
   lambdas <- object$lambda
@@ -105,8 +107,8 @@ predict.MRFA <- function(object, xnew, lambda = object$lambda, parallel = FALSE,
   lambda[lambda < min(lambdas)] <- min(lambdas)
   sbeta <- lambdas
 
-  sfrac <- (lambda - sbeta[1])/(sbeta[k] - sbeta[1])
-  sbeta <- (sbeta - sbeta[1])/(sbeta[k] - sbeta[1])
+  sfrac <- (lambda - sbeta[1])/(sbeta[kk] - sbeta[1])
+  sbeta <- (sbeta - sbeta[1])/(sbeta[kk] - sbeta[1])
   usbeta <- unique(sbeta)
   useq <- match(usbeta, sbeta)
   sbeta <- sbeta[useq]

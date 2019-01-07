@@ -1,4 +1,4 @@
-basis_fun <- function(group.ls, X, gridpoint.ls, bandwidth.ls, parallel = FALSE){
+basis_fun <- function(group.ls, X, gridpoint.ls, bandwidth.ls, k, parallel = FALSE){
   ### Construct basis function based on candidate group, gridpoints and bandwidth
 
   group.ls <- unlist(group.ls, recursive = FALSE)
@@ -11,7 +11,7 @@ basis_fun <- function(group.ls, X, gridpoint.ls, bandwidth.ls, parallel = FALSE)
       apply(dist, 1, FUN = function(x) sqrt(sum(x^2))/bandwith)
     }))
     if(nrow(X) == 1) Dist <- t(Dist)   # for only one testing data case
-    Wendland(d = Dist, dimension = length(xx$effect), k = 2)
+    Wendland(d = Dist, dimension = length(xx$effect), k = k)
   }, .parallel = parallel)
 
   return(t(Phi))

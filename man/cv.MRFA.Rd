@@ -70,6 +70,9 @@ Y.train <- Y.train + rnorm(n*n_rep, 0, 0.05)
 X.test <- matrix(runif(d*n_new), ncol = d)
 Y.test <- apply(X.test, 1, grlee09)
 
+#####   Fitting    #####
+MRFA_model <- MRFA_fit(X.train, Y.train)
+
 #####   Computes the K-fold cross validated   #####
 cv.out <- cv.MRFA(X.train, Y.train, K = 5, lambda = seq(0.01,3,0.1))
 
@@ -79,10 +82,9 @@ Y.pred <- predict(MRFA_model, X.test, lambda = lambda_cv)$y_hat
 print(sqrt(mean((Y.test - Y.pred)^2)))
 }
 }
-\author{
-Chih-Li Sung <iamdfchile@gmail.com>
-}
 \seealso{
 \code{\link{MRFA_fit}} for fitting a multiresolution functional ANOVA model.
 }
-
+\author{
+Chih-Li Sung <iamdfchile@gmail.com>
+}

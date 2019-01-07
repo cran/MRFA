@@ -3,7 +3,7 @@ update_candidate <- function(add_active_group.index, active_group.index, candida
   new_candidate.group <- list()
   active.group <- candidate.group[active_group.index]
   unique.active.group <- lapply(active.group, FUN = function(x) x[[length(x)]])
-  kk <- 1
+  #kk <- 1
   for(group.index in add_active_group.index){
     new_active.group <- candidate.group[[group.index]]
     ## update candidate group with increasing resolution
@@ -46,13 +46,20 @@ update_candidate <- function(add_active_group.index, active_group.index, candida
           effect.new <- sort(unique(c(sapply(group.tmp[test.table[,ii]], function(x.ls) x.ls$effect))))
           group.new <- vector("list", new_active.resolution)
           for(jj in 1:new_active.resolution) group.new[[jj]] <- list(effect = effect.new, resolution = jj)
-          new_candidate.add <- c(unique(unlist(same_order_level.group[test.table[,ii]], recursive = FALSE)), group.new)
-          new_candidate.group <- c(new_candidate.group, list(new_candidate.add))
+          if(new_active.resolution > 1){  # add for confirming the heredity of resolution on 12/24/18
+            dupicate.index <- is.anydupicate(group.new[jj-1], unique.active.group, type = 2)
+          }else {
+            dupicate.index <- TRUE
+          }
+          if(dupicate.index){
+            new_candidate.add <- c(unique(unlist(same_order_level.group[test.table[,ii]], recursive = FALSE)), group.new)
+            new_candidate.group <- c(new_candidate.group, list(new_candidate.add))
+          }
         }
       }
     }
 
-    if(kk > 1) active_group.index <- c(active_group.index, group.index)  ## in case two active groups are entertained
+    #if(kk > 1) active_group.index <- c(active_group.index, group.index)  ## in case two active groups are entertained
   }
 
   if(length(new_candidate.group) > 1) new_candidate.group <- list.unique(new_candidate.group)

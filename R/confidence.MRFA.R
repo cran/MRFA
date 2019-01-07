@@ -115,25 +115,37 @@ confidence.MRFA <- function(object, xnew, X, lambda = object$lambda, conf.level 
   nvar.end              <-    length(beta_hat)
   min.x                 <-    object$min.x
   scale.x               <-    object$scale.x
+  k                     <-    object$k
+  standardize.d         <-    object$standardize.d
 
-  X <- t((t(X) - min.x)/scale.x)          # scale X to [0,1]
-  xnew <- t((t(xnew) - min.x)/scale.x)    # scale xnew to [0,1]
+  if(standardize.d){
+    X <- t((t(X) - min.x)/scale.x)          # scale X to [0,1]
+    xnew <- t((t(xnew) - min.x)/scale.x)    # scale xnew to [0,1]
+  }
   n.xnew <- nrow(xnew)
 
   unique.ls <- unique.matrix(active.group, beta_hat, gridpoint.ls)
   unique.beta <- unique.ls$unique.beta
   unique.active.group <- unique.ls$unique.active.group
 
-  Phi <- basis_fun(unique.active.group, X, gridpoint.ls, bandwidth.ls, parallel = parallel)  ### active effects
+  Phi <- basis_fun(unique.active.group, X, gridpoint.ls, bandwidth.ls, k = k, parallel = parallel)  ### active effects
   s <- ncol(Phi) + 1
 
   unique.nonactive.group <- lapply(nonactive.group, function(x) x[length(x)])
-  Q <- basis_fun(unique.nonactive.group, X, gridpoint.ls, bandwidth.ls, parallel = parallel) ### nonactive effects
-  Phi.train <- cbind(Phi, Q)
-  beta_hat <- cbind(matrix(unique.beta, nrow = 1), matrix(0, nrow = nrow(beta_hat), ncol = ncol(Q)))
+  if(length(nonactive.group) > 0){  # fix the bug on 01/02/2019
+    Q <- basis_fun(unique.nonactive.group, X, gridpoint.ls, bandwidth.ls, k = k, parallel = parallel) ### nonactive effects
+    Phi.train <- cbind(Phi, Q)
+    beta_hat <- cbind(matrix(unique.beta, nrow = 1), matrix(0, nrow = nrow(beta_hat), ncol = ncol(Q)))
+  }else{
+    Phi.train <- Phi
+    beta_hat <- matrix(unique.beta, nrow = 1)
+  }
 
-  Phi.test <- basis_fun(unique.active.group, xnew, gridpoint.ls, bandwidth.ls, parallel = parallel)
-  Phi.test <- cbind(Phi.test, basis_fun(unique.nonactive.group, xnew, gridpoint.ls, bandwidth.ls, parallel = parallel))
+
+  Phi.test <- basis_fun(unique.active.group, xnew, gridpoint.ls, bandwidth.ls, k = k, parallel = parallel)
+  if(length(nonactive.group) > 0){  # fix the bug on 01/02/2019
+    Phi.test <- cbind(Phi.test, basis_fun(unique.nonactive.group, xnew, gridpoint.ls, bandwidth.ls, k = k, parallel = parallel))
+  }
   p <- ncol(Phi.test) + 1
 
   if(s >= n & var.estimation == "rss"){
