@@ -4,8 +4,7 @@
 \alias{predict.MRFA}
 \title{Prediction of Multi-Resolution Functional ANOVA (MRFA) Model}
 \usage{
-\method{predict}{MRFA}(object, xnew, lambda = object$lambda,
-  parallel = FALSE, ...)
+\method{predict}{MRFA}(object, xnew, lambda = object$lambda, parallel = FALSE, ...)
 }
 \arguments{
 \item{object}{a class MRFA object estimated by \code{MRFA_fit}.}

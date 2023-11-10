@@ -753,7 +753,7 @@ grplasso_forward <- function(x, y, X, index, weights = rep(1, length(y)),
         x.pen.len <- length(x.pen)
 
         ## If memory is not enough to store new basis functions then stop and output results
-        if(class(x.add) == "try-error"){
+        if(class(x.add)[1] == "try-error"){
           if(center){
             if(!has.intercept) ## could be removed; already handled above
               stop("Need intercept term when using center = TRUE")

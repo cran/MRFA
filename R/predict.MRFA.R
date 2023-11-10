@@ -122,5 +122,6 @@ predict.MRFA <- function(object, xnew, lambda = object$lambda, parallel = FALSE,
   newbetas[left == right, ] <- betas[left[left == right], ]
   y_hat <- drop(Phi %*% t(newbetas))
 
+  y_hat <- object$model@invlink(y_hat) # add in v0.5 for exponential family
   return(list(lambda = lambda, coefficients = newbetas, y_hat = y_hat))
 }

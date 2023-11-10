@@ -4,9 +4,18 @@
 \alias{cv.MRFA}
 \title{Compute K-fold cross-validated error for Multi-Resolution Functional ANOVA (MRFA) Model}
 \usage{
-cv.MRFA(X, Y, order = 10, level = 10, lambda = exp(seq(log(500),
-  log(0.001), by = -0.01)), K = 10, plot.it = TRUE, parallel = FALSE,
-  verbose = FALSE, ...)
+cv.MRFA(
+  X,
+  Y,
+  order = 10,
+  level = 10,
+  lambda = exp(seq(log(500), log(0.001), by = -0.01)),
+  K = 10,
+  plot.it = TRUE,
+  parallel = FALSE,
+  verbose = FALSE,
+  ...
+)
 }
 \arguments{
 \item{X}{input for \code{MRFA_fit}.}

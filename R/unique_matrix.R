@@ -1,4 +1,4 @@
-unique.matrix <- function(active.group, beta_hat, gridpoint.ls){
+unique_matrix <- function(active.group, beta_hat, gridpoint.ls){
   active.group.unlist <- unlist(active.group, recursive = FALSE)
   ncol.vt <- sapply(active.group.unlist, function(x) nrow(gridpoint.ls[[length(x$effect)]][[x$resolution]]))
   cumsum.ncol <- cumsum(ncol.vt)

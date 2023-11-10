@@ -4,11 +4,24 @@
 \alias{MRFA_fit}
 \title{Fit a Multi-Resolution Functional ANOVA (MRFA) Model}
 \usage{
-MRFA_fit(X, Y, weights = rep(1, length(Y)), order = 10, level = 10,
-  lambda.min = 1e-05, converge.tol = 1e-10, nvar.max = min(3 *
-  length(Y), 3000), k = 2, pen.norm = c("2", "N")[1],
-  model = LinReg(), standardize.d = TRUE, center = TRUE,
-  standardize = TRUE, parallel = FALSE, verbose = TRUE)
+MRFA_fit(
+  X,
+  Y,
+  weights = rep(1, length(Y)),
+  order = 10,
+  level = 10,
+  lambda.min = 1e-05,
+  converge.tol = 1e-10,
+  nvar.max = min(3 * length(Y), 3000),
+  k = 2,
+  pen.norm = c("2", "N")[1],
+  model = LinReg(),
+  standardize.d = TRUE,
+  center = TRUE,
+  standardize = TRUE,
+  parallel = FALSE,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{X}{a design matrix with dimension \code{n} by \code{d}.}

@@ -124,7 +124,7 @@ confidence.MRFA <- function(object, xnew, X, lambda = object$lambda, conf.level 
   }
   n.xnew <- nrow(xnew)
 
-  unique.ls <- unique.matrix(active.group, beta_hat, gridpoint.ls)
+  unique.ls <- unique_matrix(active.group, beta_hat, gridpoint.ls)
   unique.beta <- unique.ls$unique.beta
   unique.active.group <- unique.ls$unique.active.group
 
